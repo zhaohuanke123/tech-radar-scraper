@@ -54,6 +54,10 @@ jobs:
         env:
           # 从 GitHub Secrets 读取 Token（提高 API 速率限制）
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 注入 LLM 环境变量（注意：这些需要在仓库的 Settings -> Secrets and variables 中配置）
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_API_BASE: ${{ vars.LLM_API_BASE }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
         run: |
           uv run python src/main.py
           echo "✅ 爬虫运行完成"
