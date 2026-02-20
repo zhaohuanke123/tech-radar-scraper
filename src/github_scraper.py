@@ -146,6 +146,42 @@ def _search_single_topic(topic: str, lang_filter: str, days: int, per_page: int 
     return []
 
 
+def fetch_repo_readme(full_name: str, max_length: int = 5000) -> str:
+    """
+    获取指定仓库的 README.md 原始内容。
+    为了节约 LLM Token，会截断过长的文本。
+
+    Args:
+        full_name: 仓库的全名，例如 'owner/repo'
+        max_length: 保留的最大字符数
+
+    Returns:
+        README 文本内容
+    """
+    url = f"https://api.github.com/repos/{full_name}/readme"
+    headers = _get_headers()
+    # 请求原始 Markdown 文本
+    headers["Accept"] = "application/vnd.github.v3.raw"
+    
+    try:
+        resp = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
+        # 简单处理一次速率限制重试
+        if _handle_rate_limit(resp):
+            resp = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
+            
+        if resp.status_code == 200:
+            text = resp.text
+            if len(text) > max_length:
+                text = text[:max_length] + "\n\n...[README Truncated]..."
+            return text
+        else:
+            logger.debug(f"仓库 {full_name} 无 README 或获取失败 (HTTP {resp.status_code})")
+            return f"暂无 README (HTTP {resp.status_code})"
+    except requests.RequestException as e:
+        logger.error(f"获取 {full_name} README 失败: {e}")
+        return "获取 README 失败"
+
+
 def fetch_github_trending(
     category: str = "ai",
     limit: int = DEFAULT_LIMIT,

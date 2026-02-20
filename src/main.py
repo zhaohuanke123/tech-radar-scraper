@@ -180,11 +180,26 @@ def main() -> Path:
 
     # ── Step 2: 抓取 GitHub 热门仓库 ────────────────────
     logger.info("[2/2] 正在抓取 GitHub 热门仓库…")
-    github_data = fetch_all_github_trending(limit=10)
+    github_data = fetch_all_github_trending(limit=5)
+    
+    # ── Step 2.5: 获取每个仓库的 README 以供分析 ─────────
+    from github_scraper import fetch_repo_readme
+    for label, repos in github_data.items():
+        for repo in repos:
+            logger.info(f"  正在获取 README: {repo['name']}")
+            repo["readme"] = fetch_repo_readme(repo["name"])
 
-    # ── Step 3: 渲染 Markdown ───────────────────────────
-    logger.info("正在渲染 Markdown 报告…")
-    markdown_content = _render_report(date_str, dotnet_articles, github_data)
+    # ── Step 3: 生成总结与渲染 Markdown ──────────────────
+    from llm_summarizer import generate_insight_report
+    logger.info("正在调用 LLM 洞察并渲染报告…")
+    llm_markdown = generate_insight_report(date_str, dotnet_articles, github_data)
+    
+    if llm_markdown:
+        # 加上头部信息
+        markdown_content = f"# 🛰️ Tech Radar Daily — {date_str}\n\n> **自动生成时间**：{beijing_now.strftime('%Y-%m-%d %H:%M')} CST  \n> 本报告由 LLM 深度分析生成。\n\n---\n\n{llm_markdown}\n\n---\n*由 [tech-radar-scraper](https://github.com) · Python + LLM 自动驱动*"
+    else:
+        logger.warning("LLM 分析失败或跳过，降级使用基础模板渲染。")
+        markdown_content = _render_report(date_str, dotnet_articles, github_data)
 
     # ── Step 4: 写入文件 ─────────────────────────────────
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
